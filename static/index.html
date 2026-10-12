@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simple Calculator</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex;
+      align-items: center; justify-content: center;
+      font-family: system-ui, Arial, sans-serif;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      color: #e2e8f0;
+    }
+    .card {
+      width: 100%; max-width: 380px; margin: 16px; padding: 28px;
+      background: #1e293b; border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.4);
+    }
+    h1 { margin: 0 0 4px; font-size: 24px; text-align: center; }
+    .sub { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+    input {
+      width: 100%; padding: 12px; margin-bottom: 12px; font-size: 16px;
+      border: 1px solid #334155; border-radius: 8px;
+      background: #0f172a; color: #e2e8f0; outline: none;
+    }
+    input:focus { border-color: #3b82f6; }
+    .ops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+    .ops button {
+      padding: 12px 0; font-size: 20px; cursor: pointer;
+      border: 1px solid #334155; border-radius: 8px;
+      background: #0f172a; color: #e2e8f0;
+    }
+    .ops button.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+    #calc {
+      width: 100%; padding: 13px; font-size: 16px; font-weight: 600;
+      border: none; border-radius: 8px; cursor: pointer;
+      background: #22c55e; color: #052e16;
+    }
+    #calc:hover { background: #16a34a; }
+    #out {
+      margin-top: 18px; min-height: 52px; padding: 14px; text-align: center;
+      font-size: 22px; font-weight: 600; border-radius: 8px; background: #0f172a;
+    }
+    #out.error { color: #f87171; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Simple Calculator</h1>
+    <div class="sub">FastAPI + JavaScript</div>
+
+    <input id="a" type="number" step="any" placeholder="First number">
+    <input id="b" type="number" step="any" placeholder="Second number">
+
+    <div class="ops">
+      <button data-op="add" class="active">+</button>
+      <button data-op="sub">−</button>
+      <button data-op="mul">×</button>
+      <button data-op="div">÷</button>
+    </div>
+
+    <button id="calc">Calculate</button>
+    <div id="out">Result yahan dikhega</div>
+  </div>
+
+  <script>
+    let op = "add";
+    const out = document.getElementById("out");
+
+    document.querySelectorAll(".ops button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".ops button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        op = btn.dataset.op;
+      });
+    });
+
+    async function calculate() {
+      const a = document.getElementById("a").value;
+      const b = document.getElementById("b").value;
+      out.className = "";
+
+      if (a === "" || b === "") {
+        out.className = "error";
+        out.textContent = "Dono numbers daalo";
+        return;
+      }
+      try {
+        const res = await fetch(`/calculate?num1=${a}&num2=${b}&op=${op}`);
+        const data = await res.json();
+        if (!res.ok) {
+          out.className = "error";
+          out.textContent = "Error: " + data.detail;
+        } else {
+          out.textContent = "Result: " + parseFloat(data.result.toFixed(10));
+        }
+      } catch (e) {
+        out.className = "error";
+        out.textContent = "Server se connect nahi hua";
+      }
+    }
+
+    document.getElementById("calc").addEventListener("click", calculate);
+    document.addEventListener("keydown", e => { if (e.key === "Enter") calculate(); });
+  </script>
+</body>
+</html>
