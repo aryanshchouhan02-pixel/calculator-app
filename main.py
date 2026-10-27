@@ -3,9 +3,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from scientific import router as scientific_router
+
 BASE_DIR = Path(__file__).parent
 
-app = FastAPI(title="Simple Calculator")
+app = FastAPI(title="Calculator")
+app.include_router(scientific_router)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 

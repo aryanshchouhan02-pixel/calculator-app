@@ -1,109 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Simple Calculator</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; display: flex;
-      align-items: center; justify-content: center;
-      font-family: system-ui, Arial, sans-serif;
-      background: linear-gradient(135deg, #1e293b, #0f172a);
-      color: #e2e8f0;
-    }
-    .card {
-      width: 100%; max-width: 380px; margin: 16px; padding: 28px;
-      background: #1e293b; border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.4);
-    }
-    h1 { margin: 0 0 4px; font-size: 24px; text-align: center; }
-    .sub { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
-    input {
-      width: 100%; padding: 12px; margin-bottom: 12px; font-size: 16px;
-      border: 1px solid #334155; border-radius: 8px;
-      background: #0f172a; color: #e2e8f0; outline: none;
-    }
-    input:focus { border-color: #3b82f6; }
-    .ops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
-    .ops button {
-      padding: 12px 0; font-size: 20px; cursor: pointer;
-      border: 1px solid #334155; border-radius: 8px;
-      background: #0f172a; color: #e2e8f0;
-    }
-    .ops button.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
-    #calc {
-      width: 100%; padding: 13px; font-size: 16px; font-weight: 600;
-      border: none; border-radius: 8px; cursor: pointer;
-      background: #22c55e; color: #052e16;
-    }
-    #calc:hover { background: #16a34a; }
-    #out {
-      margin-top: 18px; min-height: 52px; padding: 14px; text-align: center;
-      font-size: 22px; font-weight: 600; border-radius: 8px; background: #0f172a;
-    }
-    #out.error { color: #f87171; font-size: 16px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scientific Calculator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; justify-content: center;
+    padding: 16px; font-family: system-ui, Arial, sans-serif;
+    background: #0f172a; color: #e2e8f0; }
+  .card { width: 100%; max-width: 420px; background: #1e293b;
+    border-radius: 16px; padding: 18px; align-self: flex-start; }
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  h1 { margin: 0 0 12px; font-size: 20px; }
+  .badge { background: #3b82f6; color: #fff; font-size: 12px;
+    padding: 2px 8px; border-radius: 6px; }
+  .screen { background: #0f172a; border-radius: 10px; padding: 10px 12px;
+    text-align: right; margin-bottom: 10px; }
+  #expr { width: 100%; background: transparent; border: none; outline: none;
+    color: #94a3b8; font-size: 18px; text-align: right; }
+  #out { font-size: 32px; font-weight: 600; min-height: 42px; word-break: break-all; }
+  #out.err { color: #f87171; font-size: 20px; }
+  .pills { display: flex; gap: 8px; margin-bottom: 10px; }
+  .pill { padding: 6px 14px; font-size: 13px; border-radius: 999px;
+    border: 1px solid #334155; background: transparent; color: #e2e8f0; cursor: pointer; }
+  .pill.on { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+  .pad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .k { height: 46px; font-size: 15px; border: none; border-radius: 8px;
+    cursor: pointer; background: #334155; color: #e2e8f0; }
+  .k:active { transform: scale(.96); }
+  .k.n { background: #0f172a; }
+  .k.op { background: #475569; }
+  .k.m { background: #1e3a5f; font-size: 13px; }
+  #eq { width: 100%; height: 48px; margin-top: 6px; font-size: 20px; font-weight: 600;
+    border: none; border-radius: 8px; cursor: pointer; background: #22c55e; color: #052e16; }
+  .hist { margin-top: 16px; }
+  .hhead { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; }
+  .hhead button { background: none; border: none; color: #94a3b8; cursor: pointer; }
+  .hitem { display: flex; justify-content: space-between; gap: 8px;
+    padding: 6px 0; border-bottom: 1px solid #334155; }
+  .hitem button { background: none; border: none; color: #e2e8f0;
+    cursor: pointer; font-size: 14px; text-align: left; }
+  .he { color: #94a3b8 !important; overflow: hidden; text-overflow: ellipsis; }
+  .hr { color: #4ade80 !important; font-weight: 600; }
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>Simple Calculator</h1>
-    <div class="sub">FastAPI + JavaScript</div>
-
-    <input id="a" type="number" step="any" placeholder="First number">
-    <input id="b" type="number" step="any" placeholder="Second number">
-
-    <div class="ops">
-      <button data-op="add" class="active">+</button>
-      <button data-op="sub">−</button>
-      <button data-op="mul">×</button>
-      <button data-op="div">÷</button>
-    </div>
-
-    <button id="calc">Calculate</button>
-    <div id="out">Result yahan dikhega</div>
+<div class="card">
+  <div class="top"><h1>Scientific Calculator</h1><span id="mbadge" class="badge" hidden>M</span></div>
+  <div class="screen">
+    <input id="expr" inputmode="none" autocomplete="off" spellcheck="false" placeholder="0">
+    <div id="out">0</div>
   </div>
+  <div class="pills">
+    <button id="degBtn" class="pill on">DEG</button>
+    <button id="invBtn" class="pill">INV</button>
+  </div>
+  <div id="pad" class="pad"></div>
+  <button id="eq">=</button>
+  <div class="hist">
+    <div class="hhead"><span>History</span><button id="clearHist">Clear</button></div>
+    <div id="hist"></div>
+  </div>
+</div>
 
-  <script>
-    let op = "add";
-    const out = document.getElementById("out");
+<script>
+const $ = id => document.getElementById(id);
+const expr = $("expr"), out = $("out"), pad = $("pad");
+let deg = true, inv = false, ans = 0, mem = 0, fresh = false, history = [];
+try { history = JSON.parse(localStorage.getItem("calcHistory")) || []; } catch (e) {}
 
-    document.querySelectorAll(".ops button").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".ops button").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        op = btn.dataset.op;
-      });
+// [label, text, kind, invLabel, invText]
+const KEYS = [
+  ["MC","mc","m"],["MR","mr","m"],["M+","mp","m"],["M\u2212","mm","m"],["mod"," mod ","op"],
+  ["sin","sin(","f","sin\u207b\u00b9","asin("],["cos","cos(","f","cos\u207b\u00b9","acos("],
+  ["tan","tan(","f","tan\u207b\u00b9","atan("],["log","log(","f"],["ln","ln(","f"],
+  ["x\u00b2","^2","op"],["x\u02b8","^","op"],["\u221a","sqrt(","f"],["n!","!","op"],["1/x","1/(","f"],
+  ["|x|","abs(","f"],["10\u02e3","10^(","f"],["e\u02e3","e^(","f"],["\u03c0","pi","n"],["e","e","n"],
+  ["(","(","n"],[")",")","n"],["Ans","Ans","n"],["\u232b","bk","m"],["AC","ac","m"],
+  ["7","7","n"],["8","8","n"],["9","9","n"],["\u00f7","/","op"],["\u00d7","*","op"],
+  ["4","4","n"],["5","5","n"],["6","6","n"],["\u2212","-","op"],["+","+","op"],
+  ["1","1","n"],["2","2","n"],["3","3","n"],["0","0","n"],[".",".","n"]
+];
+
+function fmt(v) {
+  if (v !== 0 && (Math.abs(v) >= 1e12 || Math.abs(v) < 1e-6))
+    return v.toExponential(6).replace(/\.?0+e/, "e");
+  return String(v);
+}
+function showErr(msg) { out.textContent = msg; out.classList.add("err"); }
+function badge() { mem = parseFloat(mem.toFixed(10)); $("mbadge").hidden = mem === 0; }
+
+function press(t, kind) {
+  if (t === "1/(" && (fresh || !expr.value)) { expr.value = "1/(Ans)"; fresh = false; return; }
+  if (fresh) { expr.value = kind === "op" ? "Ans" : ""; fresh = false; }
+  else if (!expr.value && kind === "op" && t !== "-") expr.value = "Ans";
+  const s = expr.selectionStart ?? expr.value.length;
+  const e = expr.selectionEnd ?? s;
+  expr.setRangeText(t, s, e, "end");
+}
+
+function backspace() {
+  const s = expr.selectionStart, e = expr.selectionEnd;
+  if (s !== e) { expr.setRangeText("", s, e, "end"); return; }
+  const before = expr.value.slice(0, s);
+  const m = before.match(/(asin\(|acos\(|atan\(|sin\(|cos\(|tan\(|log\(|ln\(|abs\(|sqrt\(| mod |Ans|pi)$/);
+  const n = m ? m[0].length : 1;
+  if (s > 0) expr.setRangeText("", s - n, s, "end");
+}
+
+function special(k) {
+  if (k === "ac") { expr.value = ""; out.textContent = "0"; out.classList.remove("err"); fresh = false; }
+  else if (k === "bk") { if (fresh) { expr.value = ""; fresh = false; } else backspace(); }
+  else if (k === "mc") { mem = 0; badge(); }
+  else if (k === "mr") press(String(mem), "num");
+  else if (k === "mp") { mem += ans; badge(); }
+  else if (k === "mm") { mem -= ans; badge(); }
+}
+
+const invKeys = [];
+function setInv(on) {
+  inv = on;
+  $("invBtn").classList.toggle("on", on);
+  invKeys.forEach(x => x.b.textContent = on ? x.il : x.l);
+}
+
+KEYS.forEach(([label, text, kind, il, it]) => {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.className = "k " + kind;
+  if (it) invKeys.push({ b, l: label, il });
+  b.onclick = () => {
+    if (kind === "m") { special(text); return; }
+    press(inv && it ? it : text, kind);
+    if (inv && it) setInv(false);
+  };
+  pad.appendChild(b);
+});
+
+async function calculate() {
+  const e = expr.value.trim();
+  if (!e) return;
+  try {
+    const r = await fetch("/scientific", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expr: e, mode: deg ? "deg" : "rad", ans })
     });
+    const d = await r.json();
+    if (!r.ok) { showErr(typeof d.detail === "string" ? d.detail : "Invalid expression"); return; }
+    ans = d.result;
+    out.classList.remove("err");
+    out.textContent = fmt(ans);
+    history.unshift({ e, r: ans });
+    history = history.slice(0, 10);
+    try { localStorage.setItem("calcHistory", JSON.stringify(history)); } catch (x) {}
+    renderHist();
+    fresh = true;
+  } catch (err) { showErr("Server se connect nahi hua"); }
+}
 
-    async function calculate() {
-      const a = document.getElementById("a").value;
-      const b = document.getElementById("b").value;
-      out.className = "";
+function renderHist() {
+  const box = $("hist");
+  box.innerHTML = "";
+  history.forEach(h => {
+    const row = document.createElement("div");
+    row.className = "hitem";
+    const a = document.createElement("button");
+    a.className = "he"; a.textContent = h.e;
+    a.onclick = () => { expr.value = h.e; fresh = false; };
+    const b = document.createElement("button");
+    b.className = "hr"; b.textContent = "= " + fmt(h.r);
+    b.onclick = () => press(String(h.r), "num");
+    row.append(a, b);
+    box.appendChild(row);
+  });
+}
 
-      if (a === "" || b === "") {
-        out.className = "error";
-        out.textContent = "Dono numbers daalo";
-        return;
-      }
-      try {
-        const res = await fetch(`/calculate?num1=${a}&num2=${b}&op=${op}`);
-        const data = await res.json();
-        if (!res.ok) {
-          out.className = "error";
-          out.textContent = "Error: " + data.detail;
-        } else {
-          out.textContent = "Result: " + parseFloat(data.result.toFixed(10));
-        }
-      } catch (e) {
-        out.className = "error";
-        out.textContent = "Server se connect nahi hua";
-      }
-    }
+$("eq").onclick = calculate;
+$("invBtn").onclick = () => setInv(!inv);
+$("degBtn").onclick = function () {
+  deg = !deg;
+  this.textContent = deg ? "DEG" : "RAD";
+  this.classList.toggle("on", deg);
+};
+$("clearHist").onclick = () => {
+  history = [];
+  try { localStorage.removeItem("calcHistory"); } catch (x) {}
+  renderHist();
+};
 
-    document.getElementById("calc").addEventListener("click", calculate);
-    document.addEventListener("keydown", e => { if (e.key === "Enter") calculate(); });
-  </script>
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Enter") { ev.preventDefault(); calculate(); return; }
+  if (ev.key === "Escape") { special("ac"); return; }
+  if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.key.length !== 1) return;
+  if (fresh) { expr.value = /[+\-*\/^!%]/.test(ev.key) ? "Ans" : ""; fresh = false; }
+  if (document.activeElement !== expr) {
+    expr.focus();
+    expr.setSelectionRange(expr.value.length, expr.value.length);
+  }
+});
+
+renderHist();
+</script>
 </body>
 </html>
