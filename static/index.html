@@ -26,12 +26,15 @@
     border: 1px solid #334155; background: transparent; color: #e2e8f0; cursor: pointer; }
   .pill.on { background: #3b82f6; border-color: #3b82f6; color: #fff; }
   .pad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .pad[hidden] { display: none; }
+  #pad2 { margin-bottom: 6px; }
   .k { height: 46px; font-size: 15px; border: none; border-radius: 8px;
     cursor: pointer; background: #334155; color: #e2e8f0; }
   .k:active { transform: scale(.96); }
   .k.n { background: #0f172a; }
   .k.op { background: #475569; }
   .k.m { background: #1e3a5f; font-size: 13px; }
+  #pad2 .k { font-size: 13px; background: #3b2f63; }
   #eq { width: 100%; height: 48px; margin-top: 6px; font-size: 20px; font-weight: 600;
     border: none; border-radius: 8px; cursor: pointer; background: #22c55e; color: #052e16; }
   .hist { margin-top: 16px; }
@@ -55,7 +58,9 @@
   <div class="pills">
     <button id="degBtn" class="pill on">DEG</button>
     <button id="invBtn" class="pill">INV</button>
+    <button id="moreBtn" class="pill">MORE</button>
   </div>
+  <div id="pad2" class="pad" hidden></div>
   <div id="pad" class="pad"></div>
   <button id="eq">=</button>
   <div class="hist">
@@ -83,6 +88,13 @@ const KEYS = [
   ["1","1","n"],["2","2","n"],["3","3","n"],["0","0","n"],[".",".","n"]
 ];
 
+const MORE = [
+  ["sinh","sinh(","f"],["cosh","cosh(","f"],["tanh","tanh(","f"],["\u221b","cbrt(","f"],["log\u2082","log2(","f"],
+  ["nCr","ncr(","f"],["nPr","npr(","f"],["gcd","gcd(","f"],["lcm","lcm(","f"],[",",",","n"],
+  ["floor","floor(","f"],["ceil","ceil(","f"],["round","round(","f"],["sign","sign(","f"],["\u00b0","\u00b0","op"],
+  ["\u2192deg","todeg(","f"],["\u2192rad","torad(","f"],["asinh","asinh(","f"],["acosh","acosh(","f"],["atanh","atanh(","f"]
+];
+
 function fmt(v) {
   if (v !== 0 && (Math.abs(v) >= 1e12 || Math.abs(v) < 1e-6))
     return v.toExponential(6).replace(/\.?0+e/, "e");
@@ -104,7 +116,7 @@ function backspace() {
   const s = expr.selectionStart, e = expr.selectionEnd;
   if (s !== e) { expr.setRangeText("", s, e, "end"); return; }
   const before = expr.value.slice(0, s);
-  const m = before.match(/(asin\(|acos\(|atan\(|sin\(|cos\(|tan\(|log\(|ln\(|abs\(|sqrt\(| mod |Ans|pi)$/);
+  const m = before.match(/([a-z]+[0-9]*\(| mod |Ans|pi)$/);
   const n = m ? m[0].length : 1;
   if (s > 0) expr.setRangeText("", s - n, s, "end");
 }
@@ -125,18 +137,22 @@ function setInv(on) {
   invKeys.forEach(x => x.b.textContent = on ? x.il : x.l);
 }
 
-KEYS.forEach(([label, text, kind, il, it]) => {
-  const b = document.createElement("button");
-  b.textContent = label;
-  b.className = "k " + kind;
-  if (it) invKeys.push({ b, l: label, il });
-  b.onclick = () => {
-    if (kind === "m") { special(text); return; }
-    press(inv && it ? it : text, kind);
-    if (inv && it) setInv(false);
-  };
-  pad.appendChild(b);
-});
+function build(list, box) {
+  list.forEach(([label, text, kind, il, it]) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.className = "k " + kind;
+    if (it) invKeys.push({ b, l: label, il });
+    b.onclick = () => {
+      if (kind === "m") { special(text); return; }
+      press(inv && it ? it : text, kind);
+      if (inv && it) setInv(false);
+    };
+    box.appendChild(b);
+  });
+}
+build(KEYS, pad);
+build(MORE, $("pad2"));
 
 async function calculate() {
   const e = expr.value.trim();
@@ -182,7 +198,11 @@ $("invBtn").onclick = () => setInv(!inv);
 $("degBtn").onclick = function () {
   deg = !deg;
   this.textContent = deg ? "DEG" : "RAD";
-  this.classList.toggle("on", deg);
+};
+$("moreBtn").onclick = function () {
+  const p = $("pad2");
+  p.hidden = !p.hidden;
+  this.classList.toggle("on", !p.hidden);
 };
 $("clearHist").onclick = () => {
   history = [];

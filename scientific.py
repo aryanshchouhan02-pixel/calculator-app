@@ -14,13 +14,29 @@ class CalcError(Exception):
     pass
 
 
-FUNCS = {"sin", "cos", "tan", "asin", "acos", "atan",
-         "log", "ln", "sqrt", "abs", "exp", "fact"}
+FUNCS1 = {"sin", "cos", "tan", "asin", "acos", "atan",
+          "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
+          "log", "ln", "log2", "sqrt", "cbrt", "abs", "exp", "fact",
+          "floor", "ceil", "round", "sign", "todeg", "torad", "ang"}
+FUNCS2 = {"ncr", "npr", "gcd", "lcm"}
+FUNCS = FUNCS1 | FUNCS2
 CONSTS = {"pi", "e", "ans"}
-TOKEN_RE = re.compile(r"\d+\.?\d*|\.\d+|[a-z]+|\*\*|[-+*/%()!]")
+POSTFIX = {"!": "fact", "\u00b0": "ang"}
+TOKEN_RE = re.compile(r"\d+\.?\d*|\.\d+|[a-z]+[0-9]*|\*\*|[-+*/%(),!\u00b0]")
 BIN = {ast.Add: operator.add, ast.Sub: operator.sub,
        ast.Mult: operator.mul, ast.Div: operator.truediv,
        ast.Mod: operator.mod}
+SIMPLE = {
+    "log": math.log10, "ln": math.log, "log2": math.log2,
+    "sqrt": math.sqrt,
+    "cbrt": lambda v: math.copysign(abs(v) ** (1 / 3), v),
+    "abs": abs, "exp": math.exp,
+    "sinh": math.sinh, "cosh": math.cosh, "tanh": math.tanh,
+    "asinh": math.asinh, "acosh": math.acosh, "atanh": math.atanh,
+    "floor": math.floor, "ceil": math.ceil,
+    "round": lambda v: math.floor(v + 0.5),
+    "sign": lambda v: (v > 0) - (v < 0),
+}
 
 
 def tokenize(expr):
@@ -29,10 +45,17 @@ def tokenize(expr):
                  ("\u03c0", "pi"), ("\u221a", "sqrt"), ("^", "**")):
         s = s.replace(a, b)
     s = re.sub(r"\bmod\b", "%", s)
-    s = re.sub(r"\s+", "", s)
-    tokens = TOKEN_RE.findall(s)
-    if "".join(tokens) != s:
+    raw = TOKEN_RE.findall(s)
+    if "".join(raw) != re.sub(r"\s+", "", s):
         raise CalcError("Invalid character in expression")
+    tokens = []
+    for t in raw:
+        m = re.fullmatch(r"([a-z]+)(\d+)", t)
+        if (m and t not in FUNCS and t not in CONSTS
+                and (m.group(1) in FUNCS or m.group(1) in CONSTS)):
+            tokens += [m.group(1), m.group(2)]
+        else:
+            tokens.append(t)
     for t in tokens:
         if t[0].isalpha() and t not in FUNCS and t not in CONSTS:
             raise CalcError("Unknown name: " + t)
@@ -49,14 +72,39 @@ def kind(t):
     return t if t in ("(", ")") else "op"
 
 
-def expand_factorials(tokens):
+def wrap_bare_functions(tokens):
+    """sin 30 -> sin(30)"""
+    out, i = [], 0
+    while i < len(tokens):
+        t = tokens[i]
+        out.append(t)
+        i += 1
+        if t in FUNCS and i < len(tokens) and tokens[i] != "(":
+            j = i
+            if tokens[j] in ("-", "+"):
+                j += 1
+            if j < len(tokens) and kind(tokens[j]) in ("num", "const"):
+                while j + 1 < len(tokens) and tokens[j + 1] in POSTFIX:
+                    j += 1
+                out.append("(")
+                out.extend(tokens[i:j + 1])
+                out.append(")")
+                i = j + 1
+            else:
+                raise CalcError("Missing bracket after " + t)
+    return out
+
+
+def expand_postfix(tokens):
+    """5! -> fact(5), 30° -> ang(30)"""
     out = []
     for t in tokens:
-        if t != "!":
+        if t not in POSTFIX:
             out.append(t)
             continue
+        name = POSTFIX[t]
         if not out:
-            raise CalcError("Invalid use of !")
+            raise CalcError("Invalid use of " + t)
         if out[-1] == ")":
             depth, i = 0, len(out) - 1
             while i >= 0:
@@ -71,11 +119,11 @@ def expand_factorials(tokens):
                 raise CalcError("Brackets don't match")
             if i > 0 and out[i - 1] in FUNCS:
                 i -= 1
-            out[i:] = ["fact", "("] + out[i:] + [")"]
+            out[i:] = [name, "("] + out[i:] + [")"]
         elif kind(out[-1]) in ("num", "const"):
-            out[-1:] = ["fact", "(", out[-1], ")"]
+            out[-1:] = [name, "(", out[-1], ")"]
         else:
-            raise CalcError("Invalid use of !")
+            raise CalcError("Invalid use of " + t)
     return out
 
 
@@ -89,22 +137,41 @@ def add_implicit_multiplication(tokens):
     return out
 
 
-def _call(name, x, deg):
+def _int(x):
+    if x != int(x) or abs(x) > 1e12:
+        raise ValueError
+    return int(x)
+
+
+def _call(name, a, deg):
+    x = a[0]
     if name in ("sin", "cos", "tan"):
         if deg:
-            if name == "tan" and x % 180 == 90:
-                raise ValueError
             x = math.radians(x)
+        if name == "tan" and abs(math.cos(x)) < 1e-12:
+            raise ValueError
         return getattr(math, name)(x)
     if name in ("asin", "acos", "atan"):
         r = getattr(math, name)(x)
         return math.degrees(r) if deg else r
+    if name == "ang":
+        return x if deg else math.radians(x)
+    if name == "todeg":
+        return math.degrees(x)
+    if name == "torad":
+        return math.radians(x)
     if name == "fact":
         if x < 0 or x > 170 or x != int(x):
             raise ValueError
         return float(math.factorial(int(x)))
-    return {"log": math.log10, "ln": math.log, "sqrt": math.sqrt,
-            "abs": abs, "exp": math.exp}[name](x)
+    if name in FUNCS2:
+        n, k = _int(a[0]), _int(a[1])
+        if name in ("ncr", "npr"):
+            if n < 0 or k < 0 or n > 1000:
+                raise ValueError
+            return float(math.comb(n, k) if name == "ncr" else math.perm(n, k))
+        return float(math.gcd(n, k) if name == "gcd" else math.lcm(n, k))
+    return float(SIMPLE[name](x))
 
 
 def _eval(node, deg, ans):
@@ -125,16 +192,20 @@ def _eval(node, deg, ans):
         if type(node.op) in BIN:
             return BIN[type(node.op)](left, right)
     if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-            and node.func.id in FUNCS and len(node.args) == 1
-            and not node.keywords):
-        return _call(node.func.id, _eval(node.args[0], deg, ans), deg)
+            and node.func.id in FUNCS and not node.keywords):
+        name = node.func.id
+        need = 2 if name in FUNCS2 else 1
+        if len(node.args) != need:
+            raise CalcError("Wrong number of values for " + name)
+        return _call(name, [_eval(x, deg, ans) for x in node.args], deg)
     raise CalcError("Invalid expression")
 
 
 def evaluate(expr, mode="deg", ans=0.0):
     if len(expr) > 200:
         raise CalcError("Expression too long")
-    tokens = add_implicit_multiplication(expand_factorials(tokenize(expr)))
+    tokens = add_implicit_multiplication(
+        expand_postfix(wrap_bare_functions(tokenize(expr))))
     try:
         tree = ast.parse("".join(tokens), mode="eval")
         value = _eval(tree.body, mode == "deg", ans)
